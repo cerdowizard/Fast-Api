@@ -1,11 +1,11 @@
 import fastapi
 from fastapi import Depends, HTTPException, status
-from api.database import database_connect as database
+from api.database.database import get_db
 from sqlalchemy.orm import Session
 from . import post_crud
-
 from . import post_schema
-from ..categories import cat_crud
+from .. import models
+from ..adminActions import cat_crud
 from ..utils import jwt_encoder
 
 post_router = fastapi.APIRouter(
@@ -14,33 +14,29 @@ post_router = fastapi.APIRouter(
 
 
 @post_router.get("/admin/get-all")
-async def Get_All_Posts(db: Session = Depends(database.get_db)):
+async def Get_All_Posts(db: Session = Depends(get_db), ):
     get_all_posts = post_crud.get_all_posts(db=db)
     return get_all_posts
 
 
-# @post_router.post("/user/create", status_code=201, description="Created", )
-# async def Create_Post(post: post_schema.Post, db: Session = Depends(database.get_db)):
-#     result = cat_crud.check_name(db, name=post.category)
-#     if not result:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category does not exist in database")
-#     create_post = post_crud.create_post(db=db, post=post)
-#     return create_post
-
-
-@post_router.post("/user/create", status_code=201, description="Created")
-async def Create_Post(post: post_schema.Post, db: Session = Depends(database.get_db),
-                      current_user: int = Depends(jwt_encoder.get_current_user)):
+@post_router.post("/", status_code=status.HTTP_201_CREATED)
+def create_posts(post: post_schema.Post, db: Session = Depends(get_db),
+                 current_user: int = Depends(jwt_encoder.get_current_user)):
     result = cat_crud.check_name(db, name=post.category)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category does not exist in database")
+    new_post = models.Post(owner_id=current_user.id, **post.dict())
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
 
-    create_post = post_crud.create_post(db=db, post=post)
-    return create_post
+    return new_post
 
+
+#
 
 @post_router.get("/user/getbyid/{id}", status_code=201)
-async def Get_Post_By_Id(post_id: int, db: Session = Depends(database.get_db)):
+async def Get_Post_By_Id(post_id: int, db: Session = Depends(get_db)):
     result = post_crud.get_post_by_id(db, post_id=post_id)
     if not result:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -48,7 +44,7 @@ async def Get_Post_By_Id(post_id: int, db: Session = Depends(database.get_db)):
 
 
 @post_router.put("/user/update/{id}", status_code=status.HTTP_201_CREATED)
-async def Update_By_Id(id: int, updated_post: post_schema.PostUpdate, db: Session = Depends(database.get_db)):
+async def Update_By_Id(id: int, updated_post: post_schema.PostUpdate, db: Session = Depends(get_db)):
     result = cat_crud.check_name(db, name=updated_post.category)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category does not exist in database")
@@ -61,7 +57,7 @@ async def Update_By_Id(id: int, updated_post: post_schema.PostUpdate, db: Sessio
 
 
 @post_router.delete("/user/delete/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def Delete_By_Id(id: int, db: Session = Depends(database.get_db)):
+async def Delete_By_Id(id: int, db: Session = Depends(get_db)):
     result = post_crud.get_post_by_id(db=db, post_id=id)
     if not result:
         raise HTTPException(status_code=404, detail="Post not found")

@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field, EmailStr
 class BaseUser(BaseModel):
     email: EmailStr = Field(..., example="example@gmail.com")
     username: str = Field(..., example="example01")
-    role: Optional[str]
 
 
 class UserSchema(BaseUser):
@@ -39,5 +38,6 @@ class Token(BaseModel):
     token_type: str
 
 
-class TokenData(Token):
-    id:int
+class TokenData(BaseModel):
+    id: Optional[str] = None
+    role: Optional[str] = None

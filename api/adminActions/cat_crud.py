@@ -1,6 +1,6 @@
-from api.categories import cat_schema
+from api.adminActions import cat_schema
 from sqlalchemy.orm import Session
-from .. import models
+from api import models
 
 
 def create_cat(create_cat: cat_schema.CategoryCreate, db=Session):
